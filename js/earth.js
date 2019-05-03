@@ -9,12 +9,12 @@
 	}
 
 	var width  = window.innerWidth,
-		height = window.innerHeight;
+	    height = window.innerHeight;
 
 	// Earth params
 	var radius   = 0.5,
-		segments = 32,
-		rotation = 6;  
+	    segments = 32,
+	    rotation = 6;
 
 	var scene = new THREE.Scene();
 
@@ -30,13 +30,13 @@
 	light.position.set(5,3,5);
 	scene.add(light);
 
-    var sphere = createSphere(radius, segments);
-	sphere.rotation.y = rotation; 
+   	var sphere = createSphere(radius, segments);
+	sphere.rotation.y = rotation;
 	scene.add(sphere)
 
-    var clouds = createClouds(radius, segments);
-	clouds.rotation.y = rotation;
-	scene.add(clouds)
+   	//var clouds = createClouds(radius, segments);
+	//clouds.rotation.y = rotation;
+	//scene.add(clouds)
 
 	var stars = createStars(90, 64);
 	scene.add(stars);
@@ -50,7 +50,7 @@
 	function render() {
 		controls.update();
 		sphere.rotation.y += 0.0005;
-		clouds.rotation.y += 0.0005;		
+		//clouds.rotation.y += 0.0005;
 		requestAnimationFrame(render);
 		renderer.render(scene, camera);
 	}
@@ -70,19 +70,19 @@
 
 	function createClouds(radius, segments) {
 		return new THREE.Mesh(
-			new THREE.SphereGeometry(radius + 0.003, segments, segments),			
+			new THREE.SphereGeometry(radius + 0.003, segments, segments),
 			new THREE.MeshPhongMaterial({
 				map:         THREE.ImageUtils.loadTexture('images/fair_clouds_4k.png'),
 				transparent: true
 			})
-		);		
+		);
 	}
 
 	function createStars(radius, segments) {
 		return new THREE.Mesh(
-			new THREE.SphereGeometry(radius, segments, segments), 
+			new THREE.SphereGeometry(radius, segments, segments),
 			new THREE.MeshBasicMaterial({
-				map:  THREE.ImageUtils.loadTexture('images/galaxy_starfield.png'), 
+				map:  THREE.ImageUtils.loadTexture('images/galaxy_starfield.png'),
 				side: THREE.BackSide
 			})
 		);
