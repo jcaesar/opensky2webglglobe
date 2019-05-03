@@ -14,7 +14,7 @@ function getSunEuler() {
 	};
 
 	const now = Date.now() / 1e3;
-	const JD = now / 86400 + 2440587.5 + 30000;
+	const JD = now / 86400 + 2440587.5;
 	// Source: https://en.wikipedia.org/wiki/Position_of_the_Sun
 	const n = JD - 2451545;
 	const L = (280.460 + 0.9856474 * n) % 360;
@@ -31,6 +31,8 @@ function getSunEuler() {
 (function () {
 
 	var webglEl = document.getElementById('webgl');
+
+	const TL = new THREE.TextureLoader;
 
 	if (!Detector.webgl) {
 		Detector.addGetWebGLMessage(webglEl);
@@ -71,7 +73,7 @@ function getSunEuler() {
 	sphere.rotation.y = rotation;
 	scene.add(sphere)
 
-   	var clouds = createClouds(radius, segments);
+	var clouds = createClouds(radius, segments);
 	clouds.rotation.y = rotation;
 	scene.add(clouds)
 
@@ -103,10 +105,10 @@ function getSunEuler() {
 		return new THREE.Mesh(
 			new THREE.SphereGeometry(radius, segments, segments),
 			new THREE.MeshPhongMaterial({
-				map:         THREE.ImageUtils.loadTexture('images/2_no_clouds_4k.jpg'),
-				bumpMap:     THREE.ImageUtils.loadTexture('images/elev_bump_4k.jpg'),
+				map:         TL.load('images/2_no_clouds_4k.jpg'),
+				bumpMap:     TL.load('images/elev_bump_4k.jpg'),
 				bumpScale:   0.005,
-				specularMap: THREE.ImageUtils.loadTexture('images/water_4k.png'),
+				specularMap: new TL.load('images/water_4k.png'),
 				specular:    new THREE.Color('grey')								
 			})
 		);
@@ -116,7 +118,7 @@ function getSunEuler() {
 		return new THREE.Mesh(
 			new THREE.SphereGeometry(radius + 0.003, segments, segments),
 			new THREE.MeshPhongMaterial({
-				map:         THREE.ImageUtils.loadTexture('images/fair_clouds_4k.png'),
+				map:         TL.load('images/fair_clouds_4k.png'),
 				transparent: true
 			})
 		);
@@ -126,7 +128,7 @@ function getSunEuler() {
 		return new THREE.Mesh(
 			new THREE.SphereGeometry(radius, segments, segments),
 			new THREE.MeshBasicMaterial({
-				map:  THREE.ImageUtils.loadTexture('images/galaxy_starfield.png'),
+				map:  TL.load('images/galaxy_starfield.png'),
 				side: THREE.BackSide
 			})
 		);
