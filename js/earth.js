@@ -6,26 +6,27 @@ const topoint = (dist, eul) => {
 	return b;
 }
 
-// https://astronomy.stackexchange.com/questions/20560/how-to-calculate-the-position-of-the-sun-in-long-lat
-function getSunEuler() {
-	const Degrees = {
-		sin: a => Math.sin(d2r(a)),
-		cos: a => Math.cos(d2r(a)),
-	};
+var now = new Date;
 
-	const now = Date.now() / 1e3;
-	const JD = now / 86400 + 2440587.5 + 30000;
-	// Source: https://en.wikipedia.org/wiki/Position_of_the_Sun
-	const n = JD - 2451545;
-	const L = (280.460 + 0.9856474 * n) % 360;
-	const g = (357.528 + 0.9856003 * n) % 360;
-	const lambda = (L + 1.915 * Degrees.sin(g) + 0.020 * Degrees.sin(2 * g)) % 360;
-	const R = 1.00014 - 0.01671 * Degrees.cos(g) - 0.00014 * Degrees.cos(2 * g); // Distance
-	const epsilon = 23.439 - 0.0000004 * n; // Obliquity of the ecliptic
-	const alpha = Math.atan2(Degrees.cos(epsilon) * Degrees.sin(lambda), Degrees.cos(lambda));
-	const delta = Math.asin(Degrees.sin(epsilon) * Degrees.sin(lambda)); // declination
+function getSunEuler(date) {
+	// Quick hack based on long forgotten school knowledge…
+	// Posted it myself… https://astronomy.stackexchange.com/a/31758/26341
+	const now = date || new Date();
 
-	return new THREE.Euler(0, alpha, delta, 'YZX');
+	const soy = (new Date(now.getFullYear(), 0, 0)).getTime();
+	const eoy = (new Date(now.getFullYear() + 1, 0, 0)).getTime();
+	const nows = now.getTime();
+	const poy = (nows - soy) / (eoy - soy);
+
+	const secs = now.getUTCMilliseconds() / 1e3
+		+ now.getUTCSeconds()
+		+ 60 * (now.getUTCMinutes() + 60 * now.getUTCHours());
+	const pod = secs / 86400; // leap secs? nah.
+
+	const lat = (-pod + 0.5) * Math.PI * 2;
+	const lon = Math.sin((poy - .22) * Math.PI * 2) * .41;
+
+	return new THREE.Euler(0, lat, lon, 'YZX');
 }
 
 (function () {
@@ -57,8 +58,6 @@ function getSunEuler() {
 	}
 
 	var renderer = new THREE.WebGLRenderer();
-	renderer.setClearColor(0x000000, 1.0);
-	renderer.setPixelRatio(window.devicePixelRatio);
 	renderer.setSize(width, height);
 
 	scene.add(new THREE.AmbientLight(0x333355));
