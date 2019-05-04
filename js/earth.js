@@ -6,10 +6,12 @@ const topoint = (dist, eul) => {
 	return b;
 }
 
+var now = new Date();
+
 function getSunEuler(date) {
 	// Quick hack based on long forgotten school knowledge…
 	// Posted it myself… https://astronomy.stackexchange.com/a/31758/26341
-	const now = date || new Date();
+	//const now = date || new Date();
 
 	const soy = (new Date(now.getFullYear(), 0, 0)).getTime();
 	const eoy = (new Date(now.getFullYear() + 1, 0, 0)).getTime();
@@ -73,6 +75,8 @@ function flightPathLines() {
 
 	var webglEl = document.getElementById('webgl');
 
+	const TL = new THREE.TextureLoader;
+
 	if (!Detector.webgl) {
 		Detector.addGetWebGLMessage(webglEl);
 		return;
@@ -89,11 +93,12 @@ function flightPathLines() {
 	var scene = new THREE.Scene();
 
 	var camera = new THREE.PerspectiveCamera(45, width / height, 0.001, 1000);
-	camera.position = topoint(3, lleuler(48, 15));
+	camera.position.copy(topoint(3, lleuler(48, 15)));
 	if (navigator.geolocation) {
 		navigator.geolocation.getCurrentPosition(pos => {
 			console.log("Geolocation result:", pos);
-			camera.position = topoint(3, lleuler(pos.coords.latitude, pos.coords.longitude));
+			camera.position.copy(topoint(3, lleuler(pos.coords.latitude, pos.coords.longitude)));
+			controls.update();
 		});
 	}
 
@@ -110,7 +115,7 @@ function flightPathLines() {
 	sphere.rotation.y = rotation;
 	scene.add(sphere)
 
-   	var clouds = createClouds(radius, segments);
+	var clouds = createClouds(radius, segments);
 	clouds.rotation.y = rotation;
 	scene.add(clouds)
 
@@ -121,6 +126,10 @@ function flightPathLines() {
 	//scene.add(flight_path_lines);
 
 	var controls = new THREE.TrackballControls(camera);
+	controls.rotateSpeed = 0.4;
+	controls.noZoom = false;
+	controls.noPan = true;
+	controls.staticMoving = false;
 	controls.minDistance = 1.01;
 	controls.maxDistance = 20;
 
@@ -134,8 +143,7 @@ function flightPathLines() {
 		const now = new Date;
 		const secs = now.getSeconds() + now.getMilliseconds() / 1e3;
 		const ang = secs / 60 * 2 * Math.PI * 3;
-		//light.position.set(Math.sin(ang) * 5,3,5);
-		light.position = topoint(5, getSunEuler());
+		light.position.copy(topoint(5, getSunEuler()));
 
 		requestAnimationFrame(render);
 		renderer.render(scene, camera);
@@ -145,10 +153,10 @@ function flightPathLines() {
 		return new THREE.Mesh(
 			new THREE.SphereGeometry(radius, segments, segments),
 			new THREE.MeshPhongMaterial({
-				map:         THREE.ImageUtils.loadTexture('images/2_no_clouds_4k.jpg'),
-				bumpMap:     THREE.ImageUtils.loadTexture('images/elev_bump_4k.jpg'),
+				map:         TL.load('images/2_no_clouds_4k.jpg'),
+				bumpMap:     TL.load('images/elev_bump_4k.jpg'),
 				bumpScale:   0.005,
-				specularMap: THREE.ImageUtils.loadTexture('images/water_4k.png'),
+				specularMap: new TL.load('images/water_4k.png'),
 				specular:    new THREE.Color('grey')								
 			})
 		);
@@ -158,8 +166,8 @@ function flightPathLines() {
 		return new THREE.Mesh(
 			new THREE.SphereGeometry(radius + 0.003, segments, segments),
 			new THREE.MeshPhongMaterial({
-				map:         THREE.ImageUtils.loadTexture('images/fair_clouds_4k.png'),
-				transparent: true
+				map:         TL.load('images/fair_clouds_4k.png'),
+				transparent: true,
 			})
 		);
 	}
@@ -168,7 +176,7 @@ function flightPathLines() {
 		return new THREE.Mesh(
 			new THREE.SphereGeometry(radius, segments, segments),
 			new THREE.MeshBasicMaterial({
-				map:  THREE.ImageUtils.loadTexture('images/galaxy_starfield.png'),
+				map:  TL.load('images/galaxy_starfield.png'),
 				side: THREE.BackSide
 			})
 		);
