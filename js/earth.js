@@ -50,11 +50,12 @@ function getSunEuler() {
 	var scene = new THREE.Scene();
 
 	var camera = new THREE.PerspectiveCamera(45, width / height, 0.001, 1000);
-	camera.position = topoint(3, lleuler(48, 15));
+	camera.position.copy(topoint(3, lleuler(48, 15)));
 	if (navigator.geolocation) {
 		navigator.geolocation.getCurrentPosition(pos => {
 			console.log("Geolocation result:", pos);
-			camera.position = topoint(3, lleuler(pos.coords.latitude, pos.coords.longitude));
+			camera.position.copy(topoint(3, lleuler(pos.coords.latitude, pos.coords.longitude)));
+			controls.update();
 		});
 	}
 
@@ -81,6 +82,10 @@ function getSunEuler() {
 	scene.add(stars);
 
 	var controls = new THREE.TrackballControls(camera);
+	controls.rotateSpeed = 0.4;
+	controls.noZoom = false;
+	controls.noPan = true;
+	controls.staticMoving = false;
 	controls.minDistance = 1.01;
 	controls.maxDistance = 20;
 
@@ -94,7 +99,6 @@ function getSunEuler() {
 		const now = new Date;
 		const secs = now.getSeconds() + now.getMilliseconds() / 1e3;
 		const ang = secs / 60 * 2 * Math.PI * 3;
-		//light.position.set(Math.sin(ang) * 5,3,5);
 		light.position = topoint(5, getSunEuler());
 
 		requestAnimationFrame(render);
@@ -119,7 +123,7 @@ function getSunEuler() {
 			new THREE.SphereGeometry(radius + 0.003, segments, segments),
 			new THREE.MeshPhongMaterial({
 				map:         TL.load('images/fair_clouds_4k.png'),
-				transparent: true
+				transparent: true,
 			})
 		);
 	}
