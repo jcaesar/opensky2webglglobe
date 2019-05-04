@@ -6,8 +6,6 @@ const topoint = (dist, eul) => {
 	return b;
 }
 
-var now = new Date;
-
 function getSunEuler(date) {
 	// Quick hack based on long forgotten school knowledge…
 	// Posted it myself… https://astronomy.stackexchange.com/a/31758/26341
@@ -27,6 +25,48 @@ function getSunEuler(date) {
 	const lon = Math.sin((poy - .22) * Math.PI * 2) * .41;
 
 	return new THREE.Euler(0, lat, lon, 'YZX');
+}
+
+function flightPathLines() {
+
+    var geometry = new THREE.BufferGeometry();
+    var material = new THREE.LineBasicMaterial({
+        color: 0xffffff,
+        vertexColors: THREE.VertexColors,
+        transparent: true,
+        opacity: 0.8,
+        depthTest: true,
+        depthWrite: false,
+        linewidth: 0.001
+    });
+
+	const points = 6000;
+
+    var line_positions = new Float32Array(points * 3 * 2 );
+    var colors = new Float32Array(points * 3 * 2);
+
+    for (var i = 0; i < points; ++i) {
+		line_positions[i * 6 + 0] = Math.random();
+		line_positions[i * 6 + 1] = Math.random();
+		line_positions[i * 6 + 2] = Math.random();
+		line_positions[i * 6 + 3] = -1;
+		line_positions[i * 6 + 4] = -1;
+		line_positions[i * 6 + 5] = -1;
+
+		colors[i * 6 + 0] = 1.0;
+		colors[i * 6 + 1] = 0;
+		colors[i * 6 + 2] = 0;
+		colors[i * 6 + 3] = 0;
+		colors[i * 6 + 4] = 0;
+		colors[i * 6 + 5] = 1.0;
+    }
+
+    geometry.addAttribute('position', new THREE.BufferAttribute(line_positions, 3));
+    geometry.addAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    geometry.computeBoundingSphere();
+
+    return new THREE.Line(geometry, material, THREE.LinePieces);
 }
 
 (function () {
@@ -76,6 +116,9 @@ function getSunEuler(date) {
 
 	var stars = createStars(90, 64);
 	scene.add(stars);
+
+	//var flight_path_lines = flightPathLines();
+	//scene.add(flight_path_lines);
 
 	var controls = new THREE.TrackballControls(camera);
 	controls.minDistance = 1.01;
