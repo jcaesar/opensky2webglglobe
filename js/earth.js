@@ -31,21 +31,21 @@ function getSunEuler(date) {
 
 function flightPathLines() {
 
-    var geometry = new THREE.BufferGeometry();
-    var material = new THREE.LineBasicMaterial({
+    const geometry = new THREE.BufferGeometry();
+    const material = new THREE.LineBasicMaterial({
         color: 0xffffff,
         vertexColors: THREE.VertexColors,
         transparent: true,
         opacity: 0.8,
         depthTest: true,
         depthWrite: false,
-        linewidth: 0.001
+        linewidth: 0.01
     });
 
 	const points = 6000;
 
-    var line_positions = new Float32Array(points * 3 * 2 );
-    var colors = new Float32Array(points * 3 * 2);
+    const line_positions = new Float32Array(points * 3 * 2 );
+    const colors = new Float32Array(points * 3 * 2);
 
     for (var i = 0; i < points; ++i) {
 		line_positions[i * 6 + 0] = Math.random();
@@ -66,9 +66,9 @@ function flightPathLines() {
     geometry.addAttribute('position', new THREE.BufferAttribute(line_positions, 3));
     geometry.addAttribute('color', new THREE.BufferAttribute(colors, 3));
 
-    geometry.computeBoundingSphere();
+	geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3, 2);
 
-    return new THREE.Line(geometry, material, THREE.LinePieces);
+    return new THREE.LineSegments(geometry, material);
 }
 
 (function () {
@@ -122,8 +122,8 @@ function flightPathLines() {
 	var stars = createStars(90, 64);
 	scene.add(stars);
 
-	//var flight_path_lines = flightPathLines();
-	//scene.add(flight_path_lines);
+	var flight_path_lines = flightPathLines();
+	scene.add(flight_path_lines);
 
 	var controls = new THREE.TrackballControls(camera);
 	controls.rotateSpeed = 0.4;
@@ -137,8 +137,27 @@ function flightPathLines() {
 
 	render();
 
+	setInterval(() => {
+	}, 3000);
+
 	function render() {
 		controls.update();
+
+		var positions = flight_path_lines.geometry.attributes.position.array;
+		for (let r = 0; r < 1000; r++) {
+			const pidx = Math.floor(Math.random() * positions.length / 6);
+			const height = Math.random() * 2 - 1;
+			const pos = new THREE.Vector3(Math.sqrt(1 - height ** 2), height, 0);
+			pos.applyEuler(new THREE.Euler(0, Math.random() * Math.PI * 2, 0));
+
+			positions[pidx * 6 + 0] = pos.x;
+			positions[pidx * 6 + 1] = pos.y;
+			positions[pidx * 6 + 2] = pos.z;
+			positions[pidx * 6 + 3] = pos.x * 1.05;
+			positions[pidx * 6 + 4] = pos.y * 1.05;
+			positions[pidx * 6 + 5] = pos.z * 1.05;
+		}
+		flight_path_lines.geometry.attributes.position.needsUpdate = true;
 
 		const now = new Date;
 		const secs = now.getSeconds() + now.getMilliseconds() / 1e3;
