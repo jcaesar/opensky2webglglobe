@@ -1,0 +1,18 @@
+version: '3'
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    expose:
+      - "2181"
+  kafka:
+    image: wurstmeister/kafka
+    expose:
+      - "9092"
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_CREATE_TOPICS: "flights:1:1"
+      KAFKA_LISTENERS: PLAINTEXT://:9092
+  feed:
+    build:
+      context: .
+      dockerfile: feed.Dockerfile
