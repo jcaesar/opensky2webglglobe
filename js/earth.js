@@ -6,12 +6,10 @@ const topoint = (dist, eul) => {
 	return b;
 }
 
-var now = new Date();
-
 function getSunEuler(date) {
 	// Quick hack based on long forgotten school knowledge…
 	// Posted it myself… https://astronomy.stackexchange.com/a/31758/26341
-	//const now = date || new Date();
+	const now = date || new Date();
 
 	const soy = (new Date(now.getFullYear(), 0, 0)).getTime();
 	const eoy = (new Date(now.getFullYear() + 1, 0, 0)).getTime();
@@ -99,6 +97,7 @@ function flightPathLines() {
 			console.log("Geolocation result:", pos);
 			camera.position.copy(topoint(3, lleuler(pos.coords.latitude, pos.coords.longitude)));
 			controls.update();
+			render();
 		});
 	}
 
@@ -125,24 +124,17 @@ function flightPathLines() {
 	var flight_path_lines = flightPathLines();
 	scene.add(flight_path_lines);
 
-	var controls = new THREE.TrackballControls(camera);
-	controls.rotateSpeed = 0.4;
-	controls.noZoom = false;
-	controls.noPan = true;
-	controls.staticMoving = false;
+	var controls = new THREE.OrbitControls(camera);
+	controls.enableKeys = true;
 	controls.minDistance = 1.01;
 	controls.maxDistance = 20;
+	controls.addEventListener('change', render);
 
 	webglEl.appendChild(renderer.domElement);
 
 	render();
 
-	setInterval(() => {
-	}, 3000);
-
 	function render() {
-		controls.update();
-
 		var positions = flight_path_lines.geometry.attributes.position.array;
 		for (let r = 0; r < 1000; r++) {
 			const pidx = Math.floor(Math.random() * positions.length / 6);
@@ -164,7 +156,6 @@ function flightPathLines() {
 		const ang = secs / 60 * 2 * Math.PI * 3;
 		light.position.copy(topoint(5, getSunEuler()));
 
-		requestAnimationFrame(render);
 		renderer.render(scene, camera);
 	}
 
@@ -200,5 +191,21 @@ function flightPathLines() {
 			})
 		);
 	}
+
+	window.addEventListener('resize', onWindowResize, false);
+
+	function onWindowResize() {
+		camera.aspect = window.innerWidth / window.innerHeight;
+		camera.updateProjectionMatrix();
+		renderer.setSize(window.innerWidth, window.innerHeight);
+		render();
+	}
+
+	// Still draw a frame once in a while for sun position updates…
+	setInterval(() => {
+		if (document.hidden || document.msHidden || document.webkitHidden || document.mozHidden)
+			return;
+		render();
+	}, 3000);
 
 }());
