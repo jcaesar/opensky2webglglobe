@@ -154,7 +154,7 @@ function flightPathLines() {
 		const now = new Date;
 		const secs = now.getSeconds() + now.getMilliseconds() / 1e3;
 		const ang = secs / 60 * 2 * Math.PI * 3;
-		light.position.copy(topoint(5, getSunEuler()));
+		light.position.copy(topoint(15, getSunEuler()));
 
 		renderer.render(scene, camera);
 	}
