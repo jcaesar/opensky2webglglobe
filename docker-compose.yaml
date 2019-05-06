@@ -16,3 +16,7 @@ services:
     build:
       context: .
       dockerfile: feed.Dockerfile
+  kafka2sse:
+    build:
+      context: kafka2sse
+      dockerfile: ../kafka2sse.Dockerfile
