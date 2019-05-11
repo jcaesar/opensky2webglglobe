@@ -20,3 +20,10 @@ services:
     build:
       context: kafka2sse
       dockerfile: ../kafka2sse.Dockerfile
+  nginx:
+    image: nginx
+    ports:
+      - "${PUB_PORT-8042:}80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./earth:/srv/www:ro
