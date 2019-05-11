@@ -19,10 +19,13 @@ done | jq --compact-output --unbuffered '
 	select(.[5] != null and .[6] != null) |
 	{
 		"oid": .[0],
-		"lat": .[5],
-		"lon": .[6],
-		"alt": .[13],
-		"lab": (.[1] | sub("[[:space:]]+$"; "")),
-		"color": (if .[8] then "red" else "blue" end),
+		"data": {
+			"type": "plane_position",
+			"longitude": .[5],
+			"latitude": .[6],
+			"altitude": .[13],
+			"callsign": (.[1] | sub("[[:space:]]+$"; "")),
+			"color": (if .[8] then "red" else "blue" end),
+		}
 	}
 ' | kafkacat -b kafka -P -t flights
