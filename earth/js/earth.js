@@ -27,6 +27,7 @@ function getSunEuler(date) {
 	return new THREE.Euler(0, lat, lon, 'YZX');
 }
 
+const maxPlanes = 10000;
 function flightPathLines() {
 
     const geometry = new THREE.BufferGeometry();
@@ -40,30 +41,31 @@ function flightPathLines() {
         linewidth: 0.01
     });
 
-	const points = 6000;
+	const points = maxPlanes;
 
     const line_positions = new Float32Array(points * 3 * 2 );
     const colors = new Float32Array(points * 3 * 2);
 
     for (var i = 0; i < points; ++i) {
-		line_positions[i * 6 + 0] = Math.random();
-		line_positions[i * 6 + 1] = Math.random();
-		line_positions[i * 6 + 2] = Math.random();
+		line_positions[i * 6 + 0] = -Math.random();
+		line_positions[i * 6 + 1] = -Math.random();
+		line_positions[i * 6 + 2] = -1;
 		line_positions[i * 6 + 3] = -1;
 		line_positions[i * 6 + 4] = -1;
 		line_positions[i * 6 + 5] = -1;
 
-		colors[i * 6 + 0] = 1.0;
+		colors[i * 6 + 0] = 0;
 		colors[i * 6 + 1] = 0;
 		colors[i * 6 + 2] = 0;
-		colors[i * 6 + 3] = 0;
+		colors[i * 6 + 3] = 1;
 		colors[i * 6 + 4] = 0;
-		colors[i * 6 + 5] = 1.0;
+		colors[i * 6 + 5] = 0;
     }
 
     geometry.addAttribute('position', new THREE.BufferAttribute(line_positions, 3));
     geometry.addAttribute('color', new THREE.BufferAttribute(colors, 3));
 
+	geometry.setDrawRange(0, 0);
 	geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3, 2);
 
     return new THREE.LineSegments(geometry, material);
@@ -85,8 +87,7 @@ function flightPathLines() {
 
 	// Earth params
 	var radius   = 1,
-	    segments = 64,
-	    rotation = 0;
+	    segments = 64;
 
 	var scene = new THREE.Scene();
 
@@ -110,12 +111,10 @@ function flightPathLines() {
 	light.position.set(0, 0, -30);
 	scene.add(light);
 
-   	var sphere = createSphere(radius, segments);
-	sphere.rotation.y = rotation;
+	var sphere = createSphere(radius, segments);
 	scene.add(sphere)
 
 	var clouds = createClouds(radius, segments);
-	clouds.rotation.y = rotation;
 	scene.add(clouds)
 
 	var stars = createStars(90, 64);
@@ -135,22 +134,6 @@ function flightPathLines() {
 	render();
 
 	function render() {
-		var positions = flight_path_lines.geometry.attributes.position.array;
-		for (let r = 0; r < 1000; r++) {
-			const pidx = Math.floor(Math.random() * positions.length / 6);
-			const height = Math.random() * 2 - 1;
-			const pos = new THREE.Vector3(Math.sqrt(1 - height ** 2), height, 0);
-			pos.applyEuler(new THREE.Euler(0, Math.random() * Math.PI * 2, 0));
-
-			positions[pidx * 6 + 0] = pos.x;
-			positions[pidx * 6 + 1] = pos.y;
-			positions[pidx * 6 + 2] = pos.z;
-			positions[pidx * 6 + 3] = pos.x * 1.05;
-			positions[pidx * 6 + 4] = pos.y * 1.05;
-			positions[pidx * 6 + 5] = pos.z * 1.05;
-		}
-		flight_path_lines.geometry.attributes.position.needsUpdate = true;
-
 		const now = new Date;
 		const secs = now.getSeconds() + now.getMilliseconds() / 1e3;
 		const ang = secs / 60 * 2 * Math.PI * 3;
@@ -207,5 +190,66 @@ function flightPathLines() {
 			return;
 		render();
 	}, 3000);
+
+	const Plane = (() => {
+		const geometry = flight_path_lines.geometry;
+		const positions = geometry.attributes.position.array;
+		const lifetime = 300;
+		const planes = [];
+
+		return function Plane() {
+			let clearTimeout = window.setTimeout(() => this.clear(), lifetime * 1000);
+			let pidx = planes.length;
+			planes.push(this);
+			const shown = pidx < maxPlanes;
+			if (shown) {
+				geometry.setDrawRange(0, planes.length);
+			}
+			this.update = (data) => {
+				this.data = data;
+				this.draw();
+				window.clearTimeout(clearTimeout);
+				clearTimeout = setTimeout(() => this.clear(), lifetime * 1000);
+			}
+			this.draw = () => {
+				if (shown) {
+					const pos = topoint(1, lleuler(this.data.latitude, this.data.longitude));
+					const height = 1 + (this.data.altitude || this.data.geo_altitude) / 200000; // Actually an exaggeration by a factor of ~30
+					positions[pidx * 6 + 0] = pos.x;
+					positions[pidx * 6 + 1] = pos.y;
+					positions[pidx * 6 + 2] = pos.z;
+					positions[pidx * 6 + 3] = pos.x * height;
+					positions[pidx * 6 + 4] = pos.y * height;
+					positions[pidx * 6 + 5] = pos.z * height;
+					flight_path_lines.geometry.attributes.position.needsUpdate = true;
+				}
+			}
+			this.clear = () => {
+				this.dead = true;
+				planes.pop().assignat(pidx);
+				geometry.setDrawRange(0, planes.length);
+			}
+			this.assignat = (otheridx) => {
+				if (pidx != planes.length)
+					throw Error("Internal error: can't use this plane for overwriting: not last");
+				if (!planes[otheridx].dead)
+					throw Error("Internal error: overwriting living plane object");
+				pidx = otheridx;
+				this.draw();
+			}
+		}
+	})();
+
+	positions = {};
+	positionSource = new EventSource('./updates/');
+	positionSource.onmessage = (e) => {
+		const data = JSON.parse(e.data);
+		if (data.data.type != "plane_position")
+			return;
+		if (positions[data.oid] == null)
+			positions[data.oid] = new Plane();
+		data.data.icao24 = data.oid;
+		positions[data.oid].update(data.data);
+	}
 
 }());
