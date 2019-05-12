@@ -27,7 +27,19 @@ function getSunEuler(date) {
 	return new THREE.Euler(0, lat, lon, 'YZX');
 }
 
+// https://stackoverflow.com/a/37184471/401059https://stackoverflow.com/a/37184471/401059
+const queryParams = (() => {
+	let entries = new URLSearchParams(location.search.slice(1)).entries();
+	let result = {}
+	for(let entry of entries) { // each 'entry' is a [key, value] tupple
+		const [key, value] = entry;
+		result[key] = value;
+	}
+	return result;
+})();
+
 const maxPlanes = 10000;
+const maxPath = 25;
 function flightPathLines() {
 
     const geometry = new THREE.BufferGeometry();
@@ -35,31 +47,27 @@ function flightPathLines() {
         color: 0xffffff,
         vertexColors: THREE.VertexColors,
         transparent: true,
-        opacity: 0.8,
+        opacity: 1,
         depthTest: true,
         depthWrite: false,
-        linewidth: 0.01
+        linewidth: 0.1
     });
 
-	const points = maxPlanes;
+    const line_positions = new Float32Array(maxPlanes * maxPath * 6);
+    const colors = new Float32Array(maxPlanes * maxPath * 6);
 
-    const line_positions = new Float32Array(points * 3 * 2 );
-    const colors = new Float32Array(points * 3 * 2);
-
-    for (var i = 0; i < points; ++i) {
-		line_positions[i * 6 + 0] = -Math.random();
-		line_positions[i * 6 + 1] = -Math.random();
-		line_positions[i * 6 + 2] = -1;
-		line_positions[i * 6 + 3] = -1;
-		line_positions[i * 6 + 4] = -1;
-		line_positions[i * 6 + 5] = -1;
-
-		colors[i * 6 + 0] = 0;
-		colors[i * 6 + 1] = 0;
-		colors[i * 6 + 2] = 0;
-		colors[i * 6 + 3] = 1;
-		colors[i * 6 + 4] = 0;
-		colors[i * 6 + 5] = 0;
+    for (var i = 0; i < maxPlanes; ++i) {
+		line_positions[i * maxPath * 6 + 0] = -Math.random();
+		line_positions[i * maxPath * 6 + 1] = -Math.random();
+		for (let j = 2; j < maxPath * 6; ++j)
+			line_positions[i * maxPath * 6 + j] = -1;
+		for (let j = 0; j < maxPath * 2; ++j) {
+			colors[(i * maxPath * 2 + j) * 3 + 0] = 1;
+			colors[(i * maxPath * 2 + j) * 3 + 1] = 0;
+			colors[(i * maxPath * 2 + j) * 3 + 2] = 0;
+		}
+		colors[i * maxPath * 6 + 1] = 1;
+		colors[i * maxPath * 6 + 2] = 1;
     }
 
     geometry.addAttribute('position', new THREE.BufferAttribute(line_positions, 3));
@@ -70,6 +78,8 @@ function flightPathLines() {
 
     return new THREE.LineSegments(geometry, material);
 }
+
+var flight_path_lines;
 
 (function () {
 
@@ -120,7 +130,7 @@ function flightPathLines() {
 	var stars = createStars(90, 64);
 	scene.add(stars);
 
-	var flight_path_lines = flightPathLines();
+	flight_path_lines = flightPathLines();
 	scene.add(flight_path_lines);
 
 	var controls = new THREE.OrbitControls(camera);
@@ -203,31 +213,42 @@ function flightPathLines() {
 			planes.push(this);
 			const shown = pidx < maxPlanes;
 			if (shown) {
-				geometry.setDrawRange(0, planes.length);
+				geometry.setDrawRange(0, planes.length * maxPath * 2);
 			}
+			this.hist = [];
 			this.update = (data) => {
-				this.data = data;
+				const alt = data.altitude || data.geo_altitude;
+				if (alt > 30000 || alt <= 0)
+					return;
+				const height = 1 + alt / 200000; // Actually an exaggeration by a factor of ~30
+				this.hist.unshift(topoint(height, lleuler(data.latitude, data.longitude)));
+				if (this.hist.length > maxPath + 1)
+					this.hist.pop();
 				this.draw();
 				window.clearTimeout(clearTimeout);
 				clearTimeout = setTimeout(() => this.clear(), lifetime * 1000);
 			}
 			this.draw = () => {
+				let i = 1;
+				const plpos = pidx * 6 * maxPath;
 				if (shown) {
-					const pos = topoint(1, lleuler(this.data.latitude, this.data.longitude));
-					const height = 1 + (this.data.altitude || this.data.geo_altitude) / 200000; // Actually an exaggeration by a factor of ~30
-					positions[pidx * 6 + 0] = pos.x;
-					positions[pidx * 6 + 1] = pos.y;
-					positions[pidx * 6 + 2] = pos.z;
-					positions[pidx * 6 + 3] = pos.x * height;
-					positions[pidx * 6 + 4] = pos.y * height;
-					positions[pidx * 6 + 5] = pos.z * height;
-					flight_path_lines.geometry.attributes.position.needsUpdate = true;
+					for (; i < this.hist.length; ++i) {
+						positions[plpos + i * 6 - 6] = this.hist[i - 1].x;
+						positions[plpos + i * 6 - 5] = this.hist[i - 1].y;
+						positions[plpos + i * 6 - 4] = this.hist[i - 1].z;
+						positions[plpos + i * 6 - 3] = this.hist[i].x;
+						positions[plpos + i * 6 - 2] = this.hist[i].y;
+						positions[plpos + i * 6 - 1] = this.hist[i].z;
+					}
+					for (let j = (i - 1) * 6; j < maxPath * 6; ++j)
+							positions[plpos + j] = 1000;
 				}
+				geometry.attributes.position.needsUpdate = true;
 			}
 			this.clear = () => {
 				this.dead = true;
 				planes.pop().assignat(pidx);
-				geometry.setDrawRange(0, planes.length);
+				geometry.setDrawRange(0, planes.length * maxPath * 2);
 			}
 			this.assignat = (otheridx) => {
 				if (pidx != planes.length)
@@ -240,16 +261,30 @@ function flightPathLines() {
 		}
 	})();
 
-	positions = {};
-	positionSource = new EventSource('./updates/');
-	positionSource.onmessage = (e) => {
-		const data = JSON.parse(e.data);
-		if (data.data.type != "plane_position")
-			return;
-		if (positions[data.oid] == null)
-			positions[data.oid] = new Plane();
-		data.data.icao24 = data.oid;
-		positions[data.oid].update(data.data);
-	}
 
+	const positions = {};
+	if (!("test" in queryParams)) {
+		const positionSource = new EventSource('./updates/');
+		positionSource.onmessage = (e) => {
+			const data = JSON.parse(e.data);
+			if (data.data.type != "plane_position")
+				return;
+			if (positions[data.oid] == null)
+				positions[data.oid] = new Plane();
+			data.data.icao24 = data.oid;
+			positions[data.oid].update(data.data);
+		}
+	} else {
+		console.log("Test planees somewhere near england.");
+		for (let j = 0; j < 3; j++) {
+			const test = new Plane();
+			for (let i = 0; i < maxPath; ++i)
+				test.update({
+					altitude: (i + 1) / maxPath * 15000,
+					latitude: 50 + j,
+					longitude: i / 3,
+				});
+		}
+		camera.position.copy(topoint(3, lleuler(48, 50)));
+	}
 }());
